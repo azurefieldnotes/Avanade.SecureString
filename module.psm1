@@ -86,13 +86,39 @@ Function New-EncryptedStringKey
         [ValidateSet(128,196,256)]
         [Parameter(Mandatory=$false)]
         [int]
-        $KeyLength=128
+        $KeyLength=128,
+        [Parameter()]
+        [Switch]
+        $UseRandomNumberGenerator
     )
-    $AvailChars=("1,2,3,4,5,6,7,8,9,0," + `
-        "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z," + `
-        "-,+,=,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z," +
-        "!,@,#,$,%,^,&,*,<,>,?,/,|,\").Split(',')
     $CharCount=$KeyLength/8
-    $EndChars=Get-Random -InputObject $AvailChars -Count $CharCount
-    return ([String]::Join([String]::Empty,$EndChars))
+    $ClientSecret=New-Object System.String($CharCount)
+    $Seed = New-Object System.Byte[]($CharCount)
+    $NumGen = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    if($UseRandomNumberGenerator.IsPresent)
+    {
+        try 
+        {
+            $NumGen.GetBytes($Seed)
+            $ClientSecret = [System.Convert]::ToBase64String($Seed)
+        }
+        finally 
+        {
+            if($NumGen -ne $null)
+            {
+                $NumGen.Dispose()
+            }
+        }
+    }
+    else 
+    {
+        $AvailChars=("1,2,3,4,5,6,7,8,9,0," + `
+            "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z," + `
+            "-,+,=,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z," +
+            "!,@,#,$,%,^,&,*,<,>,?,/,|,\").Split(',')
+        $CharCount=$KeyLength/8
+        $EndChars=Get-Random -InputObject $AvailChars -Count $CharCount
+        $ClientSecret=([String]::Join([String]::Empty,$EndChars))
+    }
+    return $ClientSecret
 }
