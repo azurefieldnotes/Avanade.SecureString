@@ -15,10 +15,10 @@ Function New-EncryptedString
     param
     (
         [Parameter(Mandatory=$true,ParameterSetName='plain',Position=0,ValueFromPipeline=$true)]
-        [String]
+        [String[]]
         $StringToEncrypt,
         [Parameter(Mandatory=$true,ParameterSetName='secure',Position=0,ValueFromPipeline=$true)]
-        [securestring]
+        [securestring[]]
         $SecureStringToEncrypt,
         [Parameter(Mandatory=$true,ParameterSetName='secure',Position=1)]
         [Parameter(Mandatory=$true,ParameterSetName='plain',Position=1)]
@@ -26,14 +26,30 @@ Function New-EncryptedString
         [String]
         $EncryptionKey
     )
-
-    if($PSCmdlet.ParameterSetName -eq 'plain')
+    BEGIN
     {
-        $SecureStringToEncrypt=ConvertTo-SecureString -String $StringToEncrypt -AsPlainText -Force
+        $EncryptionKeyBytes=[System.Text.Encoding]::ASCII.GetBytes($EncryptionKey)
     }
-    $encryption_key=[System.Text.Encoding]::ASCII.GetBytes($EncryptionKey)
-    $encrypted = ConvertFrom-SecureString -SecureString $SecureStringToEncrypt -Key $encryption_key
-    return $encrypted
+    PROCESS
+    {
+        if($PSCmdlet.ParameterSetName -eq 'plain')
+        {
+            foreach ($item in $StringToEncrypt)
+            {
+                $SecureString=ConvertTo-SecureString -String $item -AsPlainText -Force
+                $Encrypted = ConvertFrom-SecureString -SecureString $SecureString -Key $EncryptionKeyBytes
+                Write-Output $Encrypted
+            }
+        }
+        else
+        {
+            foreach ($SecureString in $SecureStringToEncrypt)
+            {
+                $Encrypted = ConvertFrom-SecureString -SecureString $SecureString -Key $EncryptionKeyBytes
+                Write-Output $Encrypted
+            }
+        }
+    }
 }
 
 <#
@@ -52,23 +68,32 @@ Function Get-EncryptedString
     param
     (
         [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-        [String]
+        [String[]]
         $StringToDecrypt,
         [Parameter(Mandatory=$true)]
         [ValidateLength(16,32)]
         [String]
         $EncryptionKey,
-        [Parameter()]
+        [Parameter(Mandatory=$false)]
         [Switch]
         $AsPlainText
     )
-    $encryption_key=[System.Text.Encoding]::ASCII.GetBytes($EncryptionKey)
-    $decrypted = ConvertTo-SecureString -String $StringToDecrypt -Key $encryption_key
-    if($AsPlainText.IsPresent)
+    BEGIN
     {
-        $decrypted=(New-Object PSCredential("anyuser",$decrypted)).GetNetworkCredential().Password
+        $EncryptionKeyBytes=[System.Text.Encoding]::ASCII.GetBytes($EncryptionKey)
     }
-    return $decrypted
+    PROCESS
+    {
+        foreach ($item in $StringToDecrypt)
+        {
+            $Decrypted = ConvertTo-SecureString -String $item -Key $EncryptionKeyBytes
+            if($AsPlainText.IsPresent)
+            {
+                $Decrypted=(New-Object PSCredential("anyuser",$Decrypted)).GetNetworkCredential().Password
+            }
+            Write-Output $Decrypted
+        }
+    }
 }
 
 <#
@@ -87,7 +112,7 @@ Function New-EncryptedStringKey
         [Parameter(Mandatory=$false)]
         [int]
         $KeyLength=128,
-        [Parameter()]
+        [Parameter(Mandatory=$false)]
         [Switch]
         $UseRandomNumberGenerator
     )
@@ -97,12 +122,12 @@ Function New-EncryptedStringKey
     $NumGen = [System.Security.Cryptography.RandomNumberGenerator]::Create()
     if($UseRandomNumberGenerator.IsPresent)
     {
-        try 
+        try
         {
             $NumGen.GetBytes($Seed)
             $ClientSecret = [System.Convert]::ToBase64String($Seed)
         }
-        finally 
+        finally
         {
             if($NumGen -ne $null)
             {
@@ -110,7 +135,7 @@ Function New-EncryptedStringKey
             }
         }
     }
-    else 
+    else
     {
         $AvailChars=("1,2,3,4,5,6,7,8,9,0," + `
             "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z," + `
