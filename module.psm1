@@ -73,10 +73,7 @@ Function Get-EncryptedString
         [Parameter(Mandatory=$true)]
         [ValidateLength(16,32)]
         [String]
-        $EncryptionKey,
-        [Parameter(Mandatory=$false)]
-        [Switch]
-        $AsPlainText
+        $EncryptionKey
     )
     BEGIN
     {
@@ -87,10 +84,6 @@ Function Get-EncryptedString
         foreach ($item in $StringToDecrypt)
         {
             $Decrypted = ConvertTo-SecureString -String $item -Key $EncryptionKeyBytes
-            if($AsPlainText.IsPresent)
-            {
-                $Decrypted=(New-Object PSCredential("anyuser",$Decrypted)).GetNetworkCredential().Password
-            }
             Write-Output $Decrypted
         }
     }
