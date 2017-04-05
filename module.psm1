@@ -36,7 +36,11 @@ Function New-EncryptedString
         {
             foreach ($item in $StringToEncrypt)
             {
-                $SecureString=ConvertTo-SecureString -String $item -AsPlainText -Force
+                $SecureString=[securestring]::new()
+                foreach($Char in $item.ToCharArray())
+                {
+                    $SecureString.AppendChar($Char)
+                }
                 $Encrypted = ConvertFrom-SecureString -SecureString $SecureString -Key $EncryptionKeyBytes
                 Write-Output $Encrypted
             }
@@ -59,8 +63,6 @@ Function New-EncryptedString
         The encrypted SecureString
     .PARAMETER EncryptionKey
         The encryption key
-    .PARAMETER AsPlainText
-        Returns the value as a plain string
 #>
 Function Get-EncryptedString
 {
